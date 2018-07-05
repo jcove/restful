@@ -1,0 +1,19 @@
+{
+    "name": "jcove/restful",
+    "description": "laravel restfull package",
+    "require": {
+        "laravel/laravel": "5.*"
+    },
+    "license": "GPL",
+    "authors": [
+        {
+            "name": "jcove",
+            "email": "jcove@163.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Jcove\\Restful\\": "src/"
+        }
+    }
+}

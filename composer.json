@@ -3,7 +3,7 @@
     "description": "laravel restfull package",
     "require": {
         "php": ">=7.0.0",
-        "laravel/laravel": "5.5.*"
+        "laravel/framework": "~5.5"
     },
     "license": "MIT",
     "authors": [

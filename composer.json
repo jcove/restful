@@ -2,7 +2,8 @@
     "name": "jcove/restful",
     "description": "laravel restfull package",
     "require": {
-        "laravel/laravel": "5.*"
+        "php": ">=7.0.0",
+        "laravel/laravel": "5.5.*"
     },
     "license": "MIT",
     "authors": [

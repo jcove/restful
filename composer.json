@@ -1,6 +1,6 @@
 {
     "name": "jcove/restful",
-    "description": "laravel restfull package",
+    "description": "laravel restful package",
     "require": {
         "php": ">=7.0.0",
         "laravel/framework": "~5.5"

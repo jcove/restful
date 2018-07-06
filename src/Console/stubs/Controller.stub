@@ -8,6 +8,11 @@ use App\Restful\Restful;
 
 class {{modelName}}Controller extends Controller
 {
-    protected $model                    =   new {{modelName}};
+    protected $model;
     use Restful;
+
+    public function __construct()
+    {
+        $this->model                    =   new {{modelName}}()
+    }
 }

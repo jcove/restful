@@ -20,7 +20,7 @@ class RestfulCommand extends Command
     protected $directory;
 
     public function handle(){
-        $this->directory            =   config('restful.restful_app_directory');
+        $this->directory            =   app_path();
         $name = $this->argument('name');
 
         $this->createController($name);
@@ -37,6 +37,8 @@ class RestfulCommand extends Command
     public function createModel($name)
     {
         $model                      =   $this->directory.'/Models/'.$name.'.php';
+        if(!file_exists($path = $this->directory.'/Models'))
+            mkdir($path, 0777, true);
         if(file_exists($model)){
             $this->line('<error>'.$name.' Model file exist:</error> '.str_replace(base_path(), '', $model));
         }else{
@@ -53,7 +55,7 @@ class RestfulCommand extends Command
     }
     protected function createController($name)
     {
-        $controller                      =   $this->directory.'/Controllers/'.$name.'.php';
+        $controller                      =   $this->directory.'/Http/Controllers/'.$name.'.php';
         if(file_exists($controller)){
             $this->line('<error>'.$name.' Controller file exist:</error> '.str_replace(base_path(), '', $controller));
         }else{

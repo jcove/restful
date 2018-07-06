@@ -73,7 +73,7 @@ class RestfulCommand extends Command
     protected function createRequest($name)
     {
 
-        $request                      =   $this->directory.'/Requests/'.$name.'.php';
+        $request                      =   $this->directory.'/Http/Requests/'.$name.'Request.php';
         if(file_exists($request)){
             $this->line('<error>'.$name.' Request file exist:</error> '.str_replace(base_path(), '', $request));
         }else{

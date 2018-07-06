@@ -19,5 +19,13 @@
         "psr-4": {
             "Jcove\\Restful\\": "src/"
         }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Jcove\\Restful\\RestfulServiceProvider"
+            ]
+
+        }
     }
 }

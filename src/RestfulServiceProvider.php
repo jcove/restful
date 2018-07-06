@@ -13,6 +13,16 @@ use Illuminate\Support\ServiceProvider;
 class RestfulServiceProvider extends ServiceProvider
 {
     protected $commands =   [
-      ''
+      'Jcove\Restful\Console\RestfulCommand'
     ];
+    public function boot()
+    {
+        if ($this->app->runningInConsole()) {
+            $this->publishes([__DIR__.'/../config' => config_path()], 'restful-config');
+        }
+    }
+    public function register()
+    {
+        $this->commands($this->commands);
+    }
 }

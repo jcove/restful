@@ -55,7 +55,7 @@ class RestfulCommand extends Command
     }
     protected function createController($name)
     {
-        $controller                      =   $this->directory.'/Http/Controllers/'.$name.'.php';
+        $controller                      =   $this->directory.'/Http/Controllers/'.$name.'Controller.php';
         if(file_exists($controller)){
             $this->line('<error>'.$name.' Controller file exist:</error> '.str_replace(base_path(), '', $controller));
         }else{

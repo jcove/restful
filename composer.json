@@ -18,7 +18,10 @@
     "autoload": {
         "psr-4": {
             "Jcove\\Restful\\": "src/"
-        }
+        },
+        "files": [
+            "src/helpers.php"
+        ]
     },
     "extra": {
         "laravel": {

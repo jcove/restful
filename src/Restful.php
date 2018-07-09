@@ -7,9 +7,12 @@
 
 namespace Jcove\Restful;
 
+use Closure;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 trait Restful
 {
@@ -19,22 +22,40 @@ trait Restful
      * 无需保存到数据库的字段
      * @var mixed
      */
-    protected $exceptField;
+    protected $exceptField          =   [];
+
+    protected $prepareSave;
+    protected $saved;
+
+
 
     public function index(){
-        $list                       =   $this->model->paginate(config('restful.page_rows'));
+        $where                      =   [];
+        if(method_exists($this,'where')){
+            $where                  =   $this->where();
+            if(null==$where){
+                $where              =   [];
+            }
+        }
+        $list                       =   $this->model->where($where)->paginate(config('restful.page_rows'));
         $data['list']               =   $list;
-        return $this->respond($data);
+        if(method_exists($this,'beforeIndex')){
+            $data                   =   $this->beforeIndex($data);
+        }
+        return respond($data);
 
     }
     public function create(){
-        return $this->respond();
+        return respond();
     }
 
     public function show($id){
         $info                       =   $this->model->where('id',$id)->firstOrFail();
         $data['info']               =   $info;
-        return $this->respond($data);
+        if(method_exists($this,'beforeShow')){
+            $data                   =   $this->beforeShow($data);
+        }
+        return respond($data);
     }
     public function edit($id){
         $info                       =   $this->model->where('id',$id)->firstOrFail();
@@ -43,27 +64,47 @@ trait Restful
     }
     public function destroy($id){
         $this->model->where('id',$id)->delete();
-        return $this->respond();
+        return respond();
     }
-    public function store(FormRequest $request){;
+    public function store(Request $request){
+        if(method_exists($this,'validate')){
+            $this->validator($request->all())->validate();
+        }
         foreach ($request->all() as $column => $value) {
             if(!in_array($column,$this->getExceptFields())){
                 $this->model->setAttribute($column, $value);
             }
         }
-        $this->model->save();
-        return $this->respond($this->model);
+        $this->save();
+        return respond($this->model);
     }
 
-    public function update(FormRequest $request, $id){
+    protected function save(){
+        if(method_exists($this,'prepareSave')){
+            $this->prepareSave();
+        }
+
+        DB::transaction(function (){
+            $this->model->save();
+            if(method_exists($this,'saved')){
+                $this->saved();
+            }
+
+        });
+    }
+
+    public function update(Request $request,$id){
+        if(method_exists($this,'validate')){
+            $this->validator($request->all())->validate();
+        }
         $this->model                        =   $this->model->where('id',$id)->firstOrFail();
         foreach ($request->all() as $column => $value) {
             if(!in_array($column,$this->getExceptFields())){
                 $this->model->setAttribute($column, $value);
             }
         }
-        $this->model->save();
-        return $this->respond($this->model);
+        $this->save();
+        return respond($this->model);
     }
 
     /**
@@ -82,17 +123,13 @@ trait Restful
         $this->model = $model;
     }
 
-    public function respond($data=null,$code = 0, $msg = 'success'){
-        if(request()->ajax()){
-            return $this->returnJson(new Result($code,$msg,$data));
-        }
-        if(request()->acceptsJson()){
-            return $this->returnJson(new Result($code,$msg,$data));
-        }
-        return $this->view($data);
-    }
+
     public function success($data){
-        return $this->respond($data);
+        return respond($data);
+    }
+
+    public function error($code,$msg){
+        return respond(null,$code,$msg);
     }
     protected function view($view=null , $data){
         if(null==$view){
@@ -107,10 +144,19 @@ trait Restful
         return view($view,$data);
     }
     protected function getExceptFields(){
-        return array_merge($this->exceptField,['_method,_token']);
+        return array_merge($this->exceptField,['_method','_token']);
     }
     public function returnJson(Arrayable $array){
         return response()->json($array->toArray());
     }
+
+    /**
+     * @param mixed $exceptField
+     */
+    public function setExceptField($exceptField)
+    {
+        $this->exceptField = $exceptField;
+    }
+
 
 }

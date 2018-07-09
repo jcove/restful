@@ -27,7 +27,8 @@ class RestfulCommand extends Command
         $this->createModel($name);
         $this->createRequest($name);
 
-        File::append(base_path('routes/api.php'), 'Route::resource(\'' . str_plural(strtolower($name)) . "', '{$name}Controller');");
+        File::append(base_path('routes/api.php'), 'Route::apiResource(\'' . lcfirst($name) . "', '{$name}Controller');");
+        File::append(base_path('routes/web.php'), 'Route::resource(\'' . lcfirst($name) . "', '{$name}Controller');");
     }
     protected function getStub($name)
     {

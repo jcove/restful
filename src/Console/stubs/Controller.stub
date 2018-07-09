@@ -4,15 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\{{modelName}}Request;
 use App\Models\{{modelName}};
-use App\Restful\Restful;
+use Jcove\Restful\Restful;
 
 class {{modelName}}Controller extends Controller
 {
     protected $model;
     use Restful;
 
-    public function __construct()
+    public function __construct({{modelName}}Request $request)
     {
-        $this->model                    =   new {{modelName}}()
+        $this->model                    =   new {{modelName}}();
+        $this->request                  =   $request;
     }
 }

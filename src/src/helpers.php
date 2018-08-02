@@ -9,29 +9,41 @@ use Jcove\Restful\Utils;
  * Time: 10:30
  */
 if(!function_exists('respond')){
-    function respond($data=null,$status = 200, array $headers = [], $options = 0){
+    function respond($data=null,$status = 200, array $headers = [], $options = 0,$view=''){
         if(request()->ajax()){
             return response()->json( $data , $status ,  $headers , $options);
+        }
+
+        if(request()->acceptsHtml()){
+            return restful_view($view,$data);
         }
         if(request()->acceptsJson()){
             return response()->json($data , $status ,  $headers , $options);
         }
-        return restful_view($data);
+
 
     }
 }
 if(!function_exists('restful_vies')){
     function restful_view($view=null , $data){
         if(null==$view){
-            $controller         =   request()->route()->getAction();
-            $method             =   request()->route()->getActionMethod();
-            $view               =   $controller.'.'.$method;
+            $view               =   request()->route()->getName();
             if(Utils::isMobileBrowser()){
                 $view           =   config('restful.mobile_browser_prefix').'.'.$view;
+            }else{
+                $view           =   config('restful.pc_browser_prefix').'.'.$view;
             }
         }
 
         return view($view,$data);
+    }
+}
+if(!function_exists('storage_url')){
+    function storage_url($path){
+        if(strpos($path,'http')!==false || empty($path)){
+            return $path;
+        }
+        return config('app.url').'/storage'.'/'.$path;
     }
 }
 

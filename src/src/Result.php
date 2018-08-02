@@ -22,7 +22,7 @@ class Result implements Arrayable
      * @param $msg
      * @param $data
      */
-    public function __construct($code, $msg, $data)
+    public function __construct($code, $msg, $data=[])
     {
         $this->code = $code;
         $this->msg = $msg;

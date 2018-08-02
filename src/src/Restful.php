@@ -26,8 +26,7 @@ trait Restful
      */
     protected $exceptField          =   [];
 
-    protected $prepareSave;
-    protected $saved;
+    protected $data                 =   [];
 
 
 
@@ -39,12 +38,18 @@ trait Restful
                 $where              =   [];
             }
         }
-        $list                       =   $this->model->where($where)->paginate(config('restful.page_rows'));
-        $data['list']               =   $list;
-        if(method_exists($this,'beforeIndex')){
-            $data                   =   $this->beforeIndex($data);
+        $all                            =   request()->all;
+        if($all){
+            $list                       =   $this->model->where($where)->paginate(config('restful.page_max_rows'));
+        }else{
+            $list                       =   $this->model->where($where)->paginate(config('restful.page_rows'));
         }
-        return $this->success($data);
+
+        $this->data                 =   $list;
+        if(method_exists($this,'beforeIndex')){
+            $this->beforeIndex();
+        }
+        return $this->respond($this->data);
 
     }
     public function create(){
@@ -52,17 +57,17 @@ trait Restful
     }
 
     public function show($id){
-        $info                       =   $this->model->where('id',$id)->firstOrFail();
-        $data['info']               =   $info;
+        $this->model                        =   $this->model->where('id',$id)->firstOrFail();
         if(method_exists($this,'beforeShow')){
-            $data                   =   $this->beforeShow($data);
+            $this->beforeShow();
         }
-        return $this->success($data);
+        $this->data['data']                 =   $this->model;
+        return $this->respond($this->data);
     }
     public function edit($id){
-        $info                       =   $this->model->where('id',$id)->firstOrFail();
-        $data['info']               =   $info;
-        return $this->success($data);
+        $info                               =   $this->model->where('id',$id)->firstOrFail();
+        $this->data                         =   $info;
+        return $this->respond($this->data);
     }
     public function destroy($id){
         $this->model->where('id',$id)->delete();
@@ -78,7 +83,11 @@ trait Restful
             }
         }
         $this->save();
-        return $this->success($this->model);
+        $this->data                              =   $this->model;
+        if(method_exists($this,'beforeShow')){
+            $this->beforeShow();
+        }
+        return $this->respond($this->data);
     }
 
     protected function save(){
@@ -87,31 +96,43 @@ trait Restful
             if(method_exists($this,'prepareSave')){
                 $this->prepareSave();
             }
-
+            $exist                      =   $this->model->exists;
             $this->model->save();
-            if(method_exists($this,'saved')){
-                $this->saved();
-            }
 
+            if($exist){
+                if(method_exists($this,'updated')){
+                    $this->updated();
+                }
+            }else{
+                if(method_exists($this,'saved')){
+                    $this->saved();
+                }
+            }
         });
     }
 
+
     public function update(Request $request,$id){
 
-        if(method_exists($this,'validate')){
+        if(method_exists($this,'validator')){
             $this->validator($request->all())->validate();
         }
         $this->model                        =   $this->model->where('id',$id)->firstOrFail();
-        if (!$request->user()->can('update',  $this->model)) {
-            throw new AuthorizationException(trans('message.access_denied'),403);
-        }
+//        if (!$request->user()->can('update',  $this->model)) {
+//            throw new AuthorizationException(trans('message.access_denied'),403);
+//        }
         foreach ($request->all() as $column => $value) {
             if(!in_array($column,$this->getExceptFields())){
                 $this->model->setAttribute($column, $value);
             }
         }
         $this->save();
-        return $this->success($this->model);
+        $this->data                         =   $this->model;
+        if(method_exists($this,'beforeShow')){
+            $this->beforeShow();
+        }
+
+        return $this->respond($this->data);
     }
 
     /**
@@ -131,8 +152,8 @@ trait Restful
     }
 
 
-    public function success($data = []){
-        return $this->respond($data);
+    public function success(){
+        return $this->respond(['message'=>'success']);
     }
 
     public function fail($message,$status){

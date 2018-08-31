@@ -13,6 +13,7 @@ use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\UnauthorizedException;
 
@@ -26,8 +27,11 @@ trait Restful
      */
     protected $exceptField          =   [];
 
-    protected $prepareSave;
-    protected $saved;
+    protected $data                 =   [];
+
+    protected $title                =   '';
+
+    protected $isUpdate               =   false;
 
 
 
@@ -39,32 +43,69 @@ trait Restful
                 $where              =   [];
             }
         }
-        $list                       =   $this->model->where($where)->paginate(config('restful.page_rows'));
-        $data['list']               =   $list;
-        if(method_exists($this,'beforeIndex')){
-            $data                   =   $this->beforeIndex($data);
-        }
-        return $this->success($data);
+        $all                            =   request()->input('all');
+        $this->model                    =   $this->model->where($where);
 
+        $this->sort();
+
+        if($all){
+            $list                       =   $this->model->paginate(config('restful.page_max_rows'));
+        }else{
+            $list                       =   $this->model->paginate(config('restful.page_rows'));
+        }
+
+        $this->setData($list);
+
+        if(method_exists($this,'beforeIndex')){
+            $this->beforeIndex();
+        }
+
+        return $this->respond($this->data);
+
+    }
+    public function setData($list){
+        if(!$this->canJson()){
+            $this->data['list']         =   $list;
+        }else{
+            $this->data                 =   $list;
+        }
     }
     public function create(){
         return $this->respond();
     }
 
     public function show($id){
-        $info                       =   $this->model->where('id',$id)->firstOrFail();
-        $data['info']               =   $info;
+        $this->model                        =   $this->model->where('id',$id)->firstOrFail();
         if(method_exists($this,'beforeShow')){
-            $data                   =   $this->beforeShow($data);
+            $this->beforeShow();
         }
-        return $this->success($data);
+        $this->data['data']                 =   $this->model;
+        return $this->respond($this->data);
     }
     public function edit($id){
-        $info                       =   $this->model->where('id',$id)->firstOrFail();
-        $data['info']               =   $info;
-        return $this->success($data);
+        $info                               =   $this->model->where('id',$id)->firstOrFail();
+        $this->data                         =   $info;
+        return $this->respond($this->data);
     }
+
+    protected function sort(){
+        $this->model                        =   $this->model->orderByDesc('id');
+    }
+    /**
+     * @param $id
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\Http\JsonResponse|\Illuminate\View\View
+     * @throws AuthorizationException
+     */
     public function destroy($id){
+
+        if(config('restful.validate_access')){
+            $guard                                      =   Auth::guard() ? Auth::guard(): Auth::guard(config('restful.guard'));
+            if (!$guard->user()->can('delete',   $this->model->findOrFail($id))) {
+                throw new AuthorizationException(trans('message.access_denied'),403);
+            }
+        }
+
+
         $this->model->where('id',$id)->delete();
         return $this->success();
     }
@@ -74,11 +115,15 @@ trait Restful
         }
         foreach ($request->all() as $column => $value) {
             if(!in_array($column,$this->getExceptFields())){
-                $this->model->setAttribute($column, $value);
+                $this->model->setAttribute($column, $value ? $value :'');
             }
         }
         $this->save();
-        return $this->success($this->model);
+        $this->data['data']                              =   $this->model;
+        if(method_exists($this,'beforeShow')){
+            $this->beforeShow();
+        }
+        return $this->respond($this->data);
     }
 
     protected function save(){
@@ -87,31 +132,55 @@ trait Restful
             if(method_exists($this,'prepareSave')){
                 $this->prepareSave();
             }
-
+            $exist                      =   $this->model->exists;
             $this->model->save();
-            if(method_exists($this,'saved')){
-                $this->saved();
-            }
 
+            if($exist){
+                if(method_exists($this,'updated')){
+                    $this->updated();
+                }
+            }else{
+                if(method_exists($this,'saved')){
+                    $this->saved();
+                }
+            }
         });
     }
 
+    /**
+     * @param Request $request
+     * @param $id
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\Http\JsonResponse|\Illuminate\View\View
+     * @throws AuthorizationException
+     */
     public function update(Request $request,$id){
 
-        if(method_exists($this,'validate')){
-            $this->validator($request->all())->validate();
-        }
+
         $this->model                        =   $this->model->where('id',$id)->firstOrFail();
-        if (!$request->user()->can('update',  $this->model)) {
-            throw new AuthorizationException(trans('message.access_denied'),403);
+        $this->isUpdate                     =   true;
+
+        if(config('restful.validate_access')){
+            $guard                                      =   Auth::guard() ? Auth::guard(): Auth::guard(config('restful.guard'));
+            if (!$guard->user()->can('update',  $this->model)) {
+                throw new AuthorizationException(trans('message.access_denied'),403);
+            }
         }
+
         foreach ($request->all() as $column => $value) {
             if(!in_array($column,$this->getExceptFields())){
                 $this->model->setAttribute($column, $value);
             }
         }
+        if(method_exists($this,'validator')){
+            $this->validator($this->model->getAttributes())->validate();
+        }
         $this->save();
-        return $this->success($this->model);
+        $this->data                         =   $this->model;
+        if(method_exists($this,'beforeShow')){
+            $this->beforeShow();
+        }
+
+        return $this->respond($this->data);
     }
 
     /**
@@ -131,13 +200,16 @@ trait Restful
     }
 
 
-    public function success($data = []){
-        return $this->respond($data);
+    public function success($message='success'){
+        $this->setTitle($message);
+        return $this->respond(['message'=>$message,'code'=>0]);
     }
 
     public function fail($message,$status){
         return $this->respond(['message'=>$message],$status);
     }
+
+
 
     protected function getExceptFields(){
         return array_merge($this->exceptField,['_method','_token','api_token']);
@@ -155,7 +227,41 @@ trait Restful
     }
 
     public function respond($data = [], $status = 200, array $headers = [], $options = 0){
+        if(!$this->canJson()){
+            if(!empty($this->title)){
+                $data['title']        =   $this->title;
+            }
+        }
         return respond($data,$status,$headers,$options);
     }
+
+    public function canJson(){
+        return (!request()->acceptsHtml()) || request()->ajax();
+    }
+
+    /**
+     * @param string $title
+     */
+    public function setTitle(string $title)
+    {
+        $this->title = $title;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isUpdate(): bool
+    {
+        return $this->isUpdate;
+    }
+
+    /**
+     * @param bool $isUpdate
+     */
+    public function setIsUpdate(bool $isUpdate)
+    {
+        $this->isUpdate = $isUpdate;
+    }
+
 
 }

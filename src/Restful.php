@@ -105,8 +105,15 @@ trait Restful
             }
         }
 
-
-        $this->model->where('id',$id)->delete();
+        if(method_exists($this,'beforeDelete')){
+            $this->beforeDelete();
+        }
+        DB::transaction(function () use ($id) {
+            $this->model->where('id', $id)->delete();
+            if(method_exists($this,'deleted')){
+                $this->deleted();
+            }
+        });
         return $this->success();
     }
     public function store(Request $request){

@@ -46,4 +46,12 @@ if(!function_exists('storage_url')){
         return config('app.url').'/storage'.'/'.$path;
     }
 }
+if(!function_exists('original_path')){
+    function original_path($url){
+        if(strpos($url,'http')===false || empty($url)){
+            return $url;
+        }
+        return str_replace(config('app.url').'/storage/','',$url);
+    }
+}
 

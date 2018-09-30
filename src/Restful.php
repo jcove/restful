@@ -43,16 +43,8 @@ trait Restful
                 $where              =   [];
             }
         }
-        $all                            =   request()->input('all');
-        $this->model                    =   $this->model->where($where);
 
-        $this->sort();
-
-        if($all){
-            $list                       =   $this->model->paginate(config('restful.page_max_rows'));
-        }else{
-            $list                       =   $this->model->paginate(config('restful.page_rows'));
-        }
+        $list                           =   $this->paginate($this->model,$where);
 
         $this->setData($list);
 
@@ -88,7 +80,10 @@ trait Restful
         return $this->respond($this->data);
     }
 
-    protected function sort(){
+    protected function sort($model){
+        if($model){
+            return $model->orderByDesc('id');
+        }
         $this->model                        =   $this->model->orderByDesc('id');
     }
     /**
@@ -136,10 +131,16 @@ trait Restful
     protected function save(){
         //执行事务
         DB::transaction(function (){
-            if(method_exists($this,'prepareSave')){
-                $this->prepareSave();
-            }
             $exist                      =   $this->model->exists;
+            if($exist){
+                if(method_exists($this,'beforeUpdate')){
+                    $this->beforeUpdate();
+                }
+            }else{
+                if(method_exists($this,'prepareSave')){
+                    $this->prepareSave();
+                }
+            }
             $this->model->save();
 
             if($exist){
@@ -173,16 +174,16 @@ trait Restful
             }
         }
 
+//        if(method_exists($this,'validator')){
+//            $this->validator($request->all())->validate();
+//        }
         foreach ($request->all() as $column => $value) {
             if(!in_array($column,$this->getExceptFields())){
                 $this->model->setAttribute($column, $value);
             }
         }
-        if(method_exists($this,'validator')){
-            $this->validator($this->model->getAttributes())->validate();
-        }
         $this->save();
-        $this->data                         =   $this->model;
+        $this->data['data']                         =   $this->model;
         if(method_exists($this,'beforeShow')){
             $this->beforeShow();
         }
@@ -198,6 +199,25 @@ trait Restful
         return $this->model;
     }
 
+    /**
+     * @param Model $model
+     * @param $where
+     * @return array
+     */
+    public function paginate($model,$where){
+        $all                            =   request()->input('all');
+        $model                          =   $model->where($where);
+
+        $model                          =   $this->sort($model);
+        $list                           =   [];
+        if($all){
+            $list                       =   $model->paginate(config('restful.page_max_rows'));
+        }else{
+            $list                       =   $model->paginate(request()->page_size ? request()->page_size: config('restful.page_rows'));
+        }
+        return $list;
+
+    }
     /**
      * @param mixed $model
      */

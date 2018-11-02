@@ -85,6 +85,7 @@ trait Restful
             return $model->orderByDesc('id');
         }
         $this->model                        =   $this->model->orderByDesc('id');
+        return $this->model;
     }
     /**
      * @param $id
@@ -99,12 +100,12 @@ trait Restful
                 throw new AuthorizationException(trans('message.access_denied'),403);
             }
         }
-
+        $this->model                                    =   $this->model->find($id);
         if(method_exists($this,'beforeDelete')){
             $this->beforeDelete();
         }
         DB::transaction(function () use ($id) {
-            $this->model->where('id', $id)->delete();
+            $this->model->delete();
             if(method_exists($this,'deleted')){
                 $this->deleted();
             }
